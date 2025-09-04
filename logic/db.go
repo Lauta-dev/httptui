@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	sqliteFile string = os.Getenv("HOME") + "/back.db"
+	sqliteFile string = os.Getenv("HOME") + ".local/share/request.db"
 )
 
 // [GET, 200] URL
@@ -42,7 +42,6 @@ func DelItems(id string) (string, error) {
 	}
 
 	return "Eliminado", nil
-
 }
 
 func GetAllItems() []history {
