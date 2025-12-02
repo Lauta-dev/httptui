@@ -4,6 +4,7 @@ import (
 	"http_client/cmd"
 	"http_client/logic"
 	"http_client/ui/layout"
+	"log"
 )
 
 // StartApp inicia la aplicación principal
@@ -12,6 +13,13 @@ func StartApp() {
 	if cli.Help {
 		return
 	}
+
+	if err := logic.InitDB(); err != nil {
+		log.Fatal(err)
+	}
+
+	defer logic.Close()
+	logic.CreateDatabase()
 
 	// Crear estado de la aplicación
 	appState := NewAppState()
@@ -40,4 +48,3 @@ func StartApp() {
 		panic(err)
 	}
 }
-

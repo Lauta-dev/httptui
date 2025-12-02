@@ -57,7 +57,13 @@ func History(app *tview.Application) *tview.Flex {
 	flex := tview.NewFlex()
 	responseView := ResponseView()
 
-	for _, v := range logic.GetAllItems() {
+	data, err := logic.GetAllItems()
+
+	if err != nil {
+		return flex
+	}
+
+	for _, v := range data {
 		code := strconv.Itoa(v.StatusCode)
 
 		color := statusCodesColors(v.StatusCode)
@@ -111,7 +117,8 @@ func History(app *tview.Application) *tview.Flex {
 
 		case 'u':
 			list.Clear()
-			for _, v := range logic.GetAllItems() {
+			data, _ := logic.GetAllItems()
+			for _, v := range data {
 				code := strconv.Itoa(v.StatusCode)
 
 				color := statusCodesColors(v.StatusCode)

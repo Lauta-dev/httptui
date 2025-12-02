@@ -2,19 +2,20 @@ package logic
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"http_client/utils"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
 
-var (
-	sqliteFile string = os.Getenv("HOME") + ".local/share/request.db"
-)
+var sqliteFile = filepath.Join(os.Getenv("HOME"), ".local", "share", "request.db")
+var DB *sql.DB
 
 // [GET, 200] URL
 // ID
@@ -28,14 +29,50 @@ type history struct {
 	CreatedAt    string
 }
 
-func DelItems(id string) (string, error) {
-	db, err := sql.Open("sqlite", sqliteFile)
-
+func InitDB() error {
+	d, err := sql.Open("sqlite", sqliteFile)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	_, err = db.Exec("DELETE FROM request_history WHERE id = ?", id)
+	if err := d.Ping(); err != nil {
+		return err
+	}
+
+	DB = d
+	return nil
+}
+
+func Close() {
+	if DB != nil {
+		DB.Close()
+	}
+}
+
+func CreateDatabase() (bool, error) {
+	q := `
+	CREATE TABLE request_history (
+  id TEXT PRIMARY KEY,
+  url TEXT,
+  method TEXT,
+  status_code INTEGER,
+  content_type TEXT,
+  response_body TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+	`
+
+	_, err := DB.Exec(q)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func DelItems(id string) (string, error) {
+	_, err := DB.Exec("DELETE FROM request_history WHERE id = ?", id)
 
 	if err != nil {
 		return "", err
@@ -44,17 +81,13 @@ func DelItems(id string) (string, error) {
 	return "Eliminado", nil
 }
 
-func GetAllItems() []history {
-	db, err := sql.Open("sqlite", sqliteFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+func GetAllItems() ([]history, error) {
 	// Leer y mostrar
-	rows, err := db.Query("SELECT id, url, method, status_code FROM request_history ORDER BY created_at asc")
+	rows, err := DB.Query("SELECT id, url, method, status_code FROM request_history ORDER BY created_at asc")
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer rows.Close() // CERRAR SIEMPRE
 
 	var v []history
 
@@ -73,7 +106,11 @@ func GetAllItems() []history {
 		})
 	}
 
-	return v
+	if len(v) == 0 {
+		return nil, errors.New("No hay elementos")
+	}
+
+	return v, nil
 }
 
 func SaveItems(url string, code string, contentType string, responseBody string, method string) error {
@@ -87,14 +124,7 @@ func SaveItems(url string, code string, contentType string, responseBody string,
 	) VALUES (?, ?, ?, ?, ?, ?, ?);
 	`
 
-	db, err := sql.Open("sqlite", sqliteFile)
-	if err != nil {
-		return err
-	}
-
-	defer db.Close()
-
-	_, err = db.Exec(insert, id, url, method, code, contentType, body.ToDisplay, createAt)
+	_, err := DB.Exec(insert, id, url, method, code, contentType, body.ToDisplay, createAt)
 
 	if err != nil {
 		return err
@@ -104,20 +134,13 @@ func SaveItems(url string, code string, contentType string, responseBody string,
 }
 
 func GetItemById(iid string) (history, error) {
-	db, err := sql.Open("sqlite", sqliteFile)
 
 	var f history
 	var id, url, method, body, statusCode, contentType, createAt string
 
-	if err != nil {
-		return f, fmt.Errorf("error al abrir base de datos: %w", err)
-	}
+	row := DB.QueryRow("SELECT id, url, method, status_code, content_type, response_body, created_at FROM request_history WHERE id = ?", iid)
 
-	row := db.QueryRow("SELECT id, url, method, status_code, content_type, response_body, created_at FROM request_history WHERE id = ?", iid)
-
-	err = row.Scan(&id, &url, &method, &statusCode, &contentType, &body, &createAt)
-
-	if err != nil {
+	if err := row.Scan(&id, &url, &method, &statusCode, &contentType, &body, &createAt); err != nil {
 		return f, fmt.Errorf("error al escanear fila: %w", err)
 	}
 

@@ -9,6 +9,7 @@ import (
 	"http_client/ui/shotcust"
 	"http_client/utils"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -37,6 +38,9 @@ func (setup *AppSetup) SetupPages(main *layout.Layout, cli *cmd.CliOptions) {
 	setup.tabManager.CreateInitialTab(setup.appState.currentTab)
 	tabList.List.AddItem("Not Found", setup.appState.currentTab, 0, nil)
 	setup.tabManager.currentTabId = &setup.appState.currentTab
+
+	// ColorBackground tcell.Color = tcell.GetColor("#1e1e2e") // Base
+	setup.appState.mainPage.SetBackgroundColor(tcell.GetColor("#1e1e2e"))
 
 	// Agregar páginas
 	setup.appState.mainPage.AddPage("main", main.Main, true, true)
